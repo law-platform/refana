@@ -6,7 +6,7 @@
     <title>法令参照分析</title>
     <style>
         body {
-            font-family: 'Meiryo', 'Yu Gothic', sans-serif; /* 日本語フォントの優先順位を調整 */
+            font-family: 'Meiryo', 'Yu Gothic', sans-serif;
             line-height: 1.6;
             padding: 0;
             margin: 0;
@@ -228,18 +228,91 @@
         .law-row.show {
             display: table-row;
         }
-        .law-row td {
+        .law-name-cell {
+            padding-left: 50px;
             font-size: 14px;
-            padding: 10px 14px;
-            border-left: 3px solid #90a4ae;
-            color: #212121;
+            color: #424242;
         }
-        .law-row td.law-name-cell {
-            padding-left: 45px;
-            font-weight: 500;
-            color: #212121;
-            background-color: #f5f7f9;
-            font-size: 14px;
+        .clickable-count {
+            cursor: pointer;
+            color: #1565c0;
+            text-decoration: underline;
+        }
+        .clickable-count:hover {
+            color: #0d47a1;
+            background-color: #e3f2fd;
+        }
+
+        /* モーダルスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #1e3a5f;
+        }
+        .article-list {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .article-item {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .article-item:last-child {
+            border-bottom: none;
+        }
+        .article-id {
+            font-weight: bold;
+            color: #546e7a;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        .article-text {
+            white-space: pre-wrap;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #1e3a5f;
         }
     </style>
 </head>
@@ -252,22 +325,17 @@
     
     <div class="main-content">
         <h1 id="main-title">法令参照分析</h1>
-        <div class="loading" id="loading">データを読み込んでいます...</div>
-        <div id="table-container"></div>
+        <div id="table-container" class="loading">データを読み込み中...</div>
     </div>
-
+    
     <script>
-        let rawData = null;
-
-        // ★ 別の法律で使用する場合は、以下を変更してください
-        const JSON_FILE = '132a0048d_reference.json';  // JSONファイル名
-
-        // JSONファイルを読み込んで処理
+        // JSONデータの読み込みと処理
         async function loadAndProcessData() {
             try {
-                const response = await fetch(JSON_FILE);
+                // JSONファイルを読み込み
+                const response = await fetch('132a0048d.json');
                 if (!response.ok) {
-                    throw new Error('JSONファイルの読み込みに失敗しました');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const jsonData = await response.json();
                 
@@ -279,76 +347,121 @@
                 document.querySelector('#main-title').textContent = LAW_TITLE;
                 document.title = firstKey + ' 法令参照分析';
                 
-                // データを元の構造 { drafts: [...] } に変換
-                rawData = { drafts: jsonData[firstKey] };
+                // データの処理
+                const processedData = processData(jsonData);
                 
-                // データを集計
-                const stats = processData(rawData);
+                // テーブルの表示
+                displayTable(processedData);
                 
-                // テーブルを生成して表示
-                displayTable(stats);
-                
-                // ローディング表示を削除
-                document.getElementById('loading').style.display = 'none';
             } catch (error) {
-                document.getElementById('loading').innerHTML = 
-                    `<div class="error">エラー: ${error.message}</div>`;
+                document.getElementById('table-container').innerHTML = 
+                    `<div class="error">エラー: データの読み込みに失敗しました。<br>${error.message}</div>`;
                 console.error('Error:', error);
             }
         }
 
-        // データを集計する関数
-        function processData(data) {
-            const partofArticles = {};
-            const jurisdictionStats = {};
-            const jurisdictionLawStats = {};
+        // データを処理する関数
+        function processData(jsonData) {
+            // まず、トップレベルのキーを取得
+            const topLevelKeys = Object.keys(jsonData);
+            let data = { drafts: [] };
 
-            // データを集計
-            for (const draft of data.drafts) {
-                // partOfがない場合は集計対象から除外
-                if (!draft.partOf) {
-                    continue;
+            // トップレベルのキーが配列の場合、その中身を取得
+            if (topLevelKeys.length > 0) {
+                const firstKey = topLevelKeys[0];
+                if (Array.isArray(jsonData[firstKey])) {
+                    data.drafts = jsonData[firstKey];
                 }
-                
-                const partOf = draft.partOf;
+            }
+            
+            // partOfごとの統計
+            const partofArticles = {};
+            // 国ごと・partOfごとの統計
+            const jurisdictionStats = {};
+            // 国ごと・法律ごとの統計
+            const jurisdictionLawStats = {};
+            // 条文IDとテキストのマッピング
+            const articleMap = {};
+            
+            for (const draft of data.drafts) {
+                const partOf = draft.partOf || '';
+                const draftName = draft.draft || '';
                 
                 if (!partofArticles[partOf]) {
                     partofArticles[partOf] = new Set();
                 }
                 
-                for (const article of draft.articles) {
-                    const articleId = article.article;
+                for (let idx = 0; idx < draft.articles.length; idx++) {
+                    const item = draft.articles[idx];
+                    // draft名とインデックスを組み合わせて一意のIDを生成
+                    const articleId = `${draftName}_${idx}`;
+                    
+                    // 条文テキストを保存
+                    articleMap[articleId] = {
+                        text: item.article_text,
+                        draft: draftName
+                    };
+                    
                     partofArticles[partOf].add(articleId);
                     
-                    // 各条文がどの国を参照しているかをチェック
                     const jurisdictionsInArticle = new Set();
-                    for (const ref of article.references) {
-                        const jurisdiction = ref.jurisdiction;
-                        
-                        jurisdictionsInArticle.add(jurisdiction);
-                        
-                        // 法律ごとの分析を記録
-                        if (!jurisdictionLawStats[jurisdiction]) {
-                            jurisdictionLawStats[jurisdiction] = {};
-                        }
-                        
-                        // lawsオブジェクトを解析
-                        if (ref.laws) {
-                            for (const [lawName, articles] of Object.entries(ref.laws)) {
-                                if (!jurisdictionLawStats[jurisdiction][lawName]) {
-                                    jurisdictionLawStats[jurisdiction][lawName] = {
-                                        total: new Set(),
-                                        byPart: {}
-                                    };
-                                }
-                                jurisdictionLawStats[jurisdiction][lawName].total.add(articleId);
+                    let hasReference = false; // 参照があるかどうかのフラグ
+                    
+                    if (item.references && item.references.length > 0) {
+                        for (const ref of item.references) {
+                            const jurisdiction = ref.jurisdiction;
+                            jurisdictionsInArticle.add(jurisdiction);
+                            hasReference = true;
+                            
+                            // 法律ごとの統計
+                            const laws = ref.laws;
+                            for (const lawName in laws) {
+                                // laws[lawName]は文字列形式（例: "1,2,3" または "1(1)"）
+                                const lawArticlesStr = laws[lawName];
                                 
-                                if (!jurisdictionLawStats[jurisdiction][lawName].byPart[partOf]) {
-                                    jurisdictionLawStats[jurisdiction][lawName].byPart[partOf] = new Set();
+                                // ★修正箇所★: 空文字でも集計対象とするため、null/undefined以外であれば処理を実行
+                                if (lawArticlesStr !== undefined && lawArticlesStr !== null) {
+                                    if (!jurisdictionLawStats[jurisdiction]) {
+                                        jurisdictionLawStats[jurisdiction] = {};
+                                    }
+                                    if (!jurisdictionLawStats[jurisdiction][lawName]) {
+                                        jurisdictionLawStats[jurisdiction][lawName] = {
+                                            total: new Set(),
+                                            byPart: {}
+                                        };
+                                    }
+                                    jurisdictionLawStats[jurisdiction][lawName].total.add(articleId);
+                                    
+                                    if (!jurisdictionLawStats[jurisdiction][lawName].byPart[partOf]) {
+                                        jurisdictionLawStats[jurisdiction][lawName].byPart[partOf] = new Set();
+                                    }
+                                    jurisdictionLawStats[jurisdiction][lawName].byPart[partOf].add(articleId);
                                 }
-                                jurisdictionLawStats[jurisdiction][lawName].byPart[partOf].add(articleId);
                             }
                         }
+                    }
+                    
+                    // 参照がない場合、「参照なし」として扱う
+                    if (!hasReference) {
+                        const noRefName = "参照なし";
+                        jurisdictionsInArticle.add(noRefName);
+                        
+                        // 法律ごとの統計にも追加（クリックして表示できるようにするため）
+                        if (!jurisdictionLawStats[noRefName]) {
+                            jurisdictionLawStats[noRefName] = {};
+                        }
+                        if (!jurisdictionLawStats[noRefName][noRefName]) {
+                            jurisdictionLawStats[noRefName][noRefName] = {
+                                total: new Set(),
+                                byPart: {}
+                            };
+                        }
+                        jurisdictionLawStats[noRefName][noRefName].total.add(articleId);
+                        
+                        if (!jurisdictionLawStats[noRefName][noRefName].byPart[partOf]) {
+                            jurisdictionLawStats[noRefName][noRefName].byPart[partOf] = new Set();
+                        }
+                        jurisdictionLawStats[noRefName][noRefName].byPart[partOf].add(articleId);
                     }
                     
                     // 各国の分析を更新
@@ -411,13 +524,16 @@
                 jurisdictionCounts,
                 jurisdictionLawCounts,
                 partofOrder,
-                totalArticles: Object.values(partofCounts).reduce((a, b) => a + b, 0)
+                totalArticles: Object.values(partofCounts).reduce((a, b) => a + b, 0),
+                // 追加データ
+                jurisdictionLawStats, // 生の統計データ（IDセットを含む）
+                articleMap
             };
         }
 
         // テーブルを表示する関数
         function displayTable(stats) {
-            const { partofCounts, jurisdictionCounts, jurisdictionLawCounts, partofOrder, totalArticles } = stats;
+            const { partofCounts, jurisdictionCounts, jurisdictionLawCounts, partofOrder, totalArticles, jurisdictionLawStats, articleMap } = stats;
             
             // 表示する国のリスト(参照数の多い順、全て表示)
             const allJurisdictions = Object.entries(jurisdictionCounts).map(([j, counts]) => {
@@ -484,7 +600,7 @@
                         html += `
                             <tr class="law-row" data-parent="${jurisdiction.name}">
                                 <td class="law-name-cell">${law}</td>
-                                <td class="number">${data.total}<span class="percentage">(${lawTotalPercentage}%)</span></td>`;
+                                <td class="number clickable-count" data-jurisdiction="${jurisdiction.name}" data-law="${law}" data-part="ALL">${data.total}<span class="percentage">(${lawTotalPercentage}%)</span></td>`;
                         
                         for (const part of partofOrder) {
                             if (partofCounts[part]) {
@@ -492,7 +608,11 @@
                                 const partTotal = partofCounts[part];
                                 const percentage = partTotal > 0 && count > 0 ? (count / partTotal * 100).toFixed(1) : '0.0';
                                 const percentageText = count > 0 ? `<span class="percentage">(${percentage}%)</span>` : '';
-                                html += `<td class="number">${count}${percentageText}</td>`;
+                                
+                                const clickableClass = count > 0 ? 'clickable-count' : '';
+                                const dataAttrs = count > 0 ? `data-jurisdiction="${jurisdiction.name}" data-law="${law}" data-part="${part}"` : '';
+                                
+                                html += `<td class="number ${clickableClass}" ${dataAttrs}>${count}${percentageText}</td>`;
                             }
                         }
                         
@@ -508,7 +628,9 @@
                     
                     <p class="data-explanation-in-wrapper">
                         詳細については、<a href="https://doi.org/10.18999/nujlp.274.3" target="_blank">「外国法の参照に関する明治民法と明治商法の比較 」</a>を参照してください。<br>
-                        その後の研究により具体的な法令名を特定して掲載しています。
+                        その後の研究により以下の点を変更しています。<br>
+                        ・集計対象として、修正案のうち参照が付されている会社法に関する規定3か条を新たに集計に加えた。<br>
+                        ・資料の誤植と思われる法令名を修正した。
                     </p>
                 </div>`; // table-wrapperを閉じる
             
@@ -516,6 +638,7 @@
             
             // クリックイベントを追加
             addAccordionListeners();
+            addCountClickListeners(jurisdictionLawStats, articleMap);
         }
 
         // アコーディオンのクリックリスナーを追加
@@ -544,6 +667,91 @@
             });
         }
 
+        // 数値セルのクリックリスナーを追加
+        function addCountClickListeners(jurisdictionLawStats, articleMap) {
+            const countCells = document.querySelectorAll('.clickable-count');
+            
+            countCells.forEach(cell => {
+                cell.addEventListener('click', function(e) {
+                    e.stopPropagation(); // 親のクリックイベント（もしあれば）を防止
+                    const jurisdiction = this.getAttribute('data-jurisdiction');
+                    const lawName = this.getAttribute('data-law');
+                    const part = this.getAttribute('data-part');
+                    
+                    if (jurisdictionLawStats[jurisdiction] && jurisdictionLawStats[jurisdiction][lawName]) {
+                        let articleIds;
+                        if (part === 'ALL') {
+                            articleIds = jurisdictionLawStats[jurisdiction][lawName].total;
+                        } else {
+                            articleIds = jurisdictionLawStats[jurisdiction][lawName].byPart[part];
+                        }
+                        
+                        if (articleIds) {
+                            showModal(jurisdiction, lawName, part, articleIds, articleMap);
+                        }
+                    }
+                });
+            });
+        }
+
+        // モーダルを表示する関数
+        function showModal(jurisdiction, lawName, part, articleIds, articleMap) {
+            const modal = document.getElementById('articleModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            let title = `${jurisdiction} - ${lawName} を参照している条文`;
+            if (part !== 'ALL') {
+                title += ` （${part}）`;
+            }
+            
+            modalTitle.textContent = title;
+            
+            let html = '';
+            
+            // IDのセットを配列に変換してソート（必要に応じて）
+            const sortedIds = Array.from(articleIds).sort();
+            
+            if (sortedIds.length === 0) {
+                html = '<p>該当する条文がありません。</p>';
+            } else {
+                for (const id of sortedIds) {
+                    const article = articleMap[id];
+                    if (article) {
+                        // \n を <br> に置換して表示
+                        const formattedText = article.text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+                        html += `
+                            <div class="article-item">
+                                <div class="article-id">${article.draft}</div>
+                                <div class="article-text">${formattedText}</div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            modalBody.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
+        // モーダルを閉じる処理
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('articleModal');
+            const span = document.getElementsByClassName("close")[0];
+            
+            if (span) {
+                span.onclick = function() {
+                    modal.style.display = "none";
+                }
+            }
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        });
+
         // ページ読み込み時に実行
         window.addEventListener('DOMContentLoaded', loadAndProcessData);
     </script>
@@ -557,6 +765,17 @@
                 <img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="Creative Commons License" class="cc-logo">
                 <span>このデータベースは、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">クリエイティブ・コモンズ 表示 4.0 ライセンス</a>のもとで利用できます。</span>
             </div>
+        </div>
+    </div>
+
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h2 id="modalTitle">条文参照</h2>
+            </div>
+            <div id="modalBody" class="article-list">
+                </div>
         </div>
     </div>
 </body>
