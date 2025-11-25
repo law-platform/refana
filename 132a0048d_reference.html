@@ -314,6 +314,18 @@
             border-radius: 4px;
             border-left: 4px solid #1e3a5f;
         }
+        /* リンク付き条文のスタイル */
+        .article-link-hint {
+            font-size: 13px;
+            color: #1565c0;
+            margin-top: 8px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .article-link-hint:hover {
+            color: #0d47a1;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -329,6 +341,9 @@
     </div>
     
     <script>
+        // グローバル変数としてリンクマッピングを保持
+        let articleLinks = {};
+
         // JSONデータの読み込みと処理
         async function loadAndProcessData() {
             try {
@@ -338,6 +353,17 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const jsonData = await response.json();
+                
+                // リンクマッピングファイルを読み込み（オプション）
+                try {
+                    const linksResponse = await fetch('132a0048d_links.json');
+                    if (linksResponse.ok) {
+                        articleLinks = await linksResponse.json();
+                        console.log('リンクマッピングを読み込みました:', Object.keys(articleLinks).length, '件');
+                    }
+                } catch (linkError) {
+                    console.log('リンクマッピングファイルが見つかりません（オプション）');
+                }
                 
                 // JSONの最初のキー名を取得してタイトルに使用
                 const firstKey = Object.keys(jsonData)[0];
@@ -393,37 +419,38 @@
                 
                 for (let idx = 0; idx < draft.articles.length; idx++) {
                     const item = draft.articles[idx];
-                    // draft名とインデックスを組み合わせて一意のIDを生成
-                    const articleId = `${draftName}_${idx}`;
+                    // article_id があればそれを使用、なければ従来通りインデックスベースで生成
+                    const articleId = item.article_id || `${draftName}_${idx}`;
                     
-                    // 条文テキストを保存
+                    // 条文テキストを保存（article_idも保存）
                     articleMap[articleId] = {
                         text: item.article_text,
-                        draft: draftName
+                        draft: draftName,
+                        article_id: item.article_id || null  // 元のarticle_idを保存
                     };
                     
                     partofArticles[partOf].add(articleId);
                     
-                    const jurisdictionsInArticle = new Set();
-                    let hasReference = false; // 参照があるかどうかのフラグ
-                    
-                    if (item.references && item.references.length > 0) {
+                    // 参照情報を処理
+                    if (item.references && Array.isArray(item.references)) {
                         for (const ref of item.references) {
                             const jurisdiction = ref.jurisdiction;
-                            jurisdictionsInArticle.add(jurisdiction);
-                            hasReference = true;
+                            
+                            if (!jurisdictionStats[jurisdiction]) {
+                                jurisdictionStats[jurisdiction] = {};
+                            }
+                            if (!jurisdictionStats[jurisdiction][partOf]) {
+                                jurisdictionStats[jurisdiction][partOf] = new Set();
+                            }
+                            jurisdictionStats[jurisdiction][partOf].add(articleId);
                             
                             // 法律ごとの統計
-                            const laws = ref.laws;
-                            for (const lawName in laws) {
-                                // laws[lawName]は文字列形式（例: "1,2,3" または "1(1)"）
-                                const lawArticlesStr = laws[lawName];
-                                
-                                // ★修正箇所★: 空文字でも集計対象とするため、null/undefined以外であれば処理を実行
-                                if (lawArticlesStr !== undefined && lawArticlesStr !== null) {
-                                    if (!jurisdictionLawStats[jurisdiction]) {
-                                        jurisdictionLawStats[jurisdiction] = {};
-                                    }
+                            if (!jurisdictionLawStats[jurisdiction]) {
+                                jurisdictionLawStats[jurisdiction] = {};
+                            }
+                            
+                            if (ref.laws && typeof ref.laws === 'object') {
+                                for (const lawName of Object.keys(ref.laws)) {
                                     if (!jurisdictionLawStats[jurisdiction][lawName]) {
                                         jurisdictionLawStats[jurisdiction][lawName] = {
                                             total: new Set(),
@@ -440,119 +467,90 @@
                             }
                         }
                     }
-                    
-                    // 参照がない場合、「参照なし」として扱う
-                    if (!hasReference) {
-                        const noRefName = "参照なし";
-                        jurisdictionsInArticle.add(noRefName);
-                        
-                        // 法律ごとの統計にも追加（クリックして表示できるようにするため）
-                        if (!jurisdictionLawStats[noRefName]) {
-                            jurisdictionLawStats[noRefName] = {};
-                        }
-                        if (!jurisdictionLawStats[noRefName][noRefName]) {
-                            jurisdictionLawStats[noRefName][noRefName] = {
-                                total: new Set(),
-                                byPart: {}
-                            };
-                        }
-                        jurisdictionLawStats[noRefName][noRefName].total.add(articleId);
-                        
-                        if (!jurisdictionLawStats[noRefName][noRefName].byPart[partOf]) {
-                            jurisdictionLawStats[noRefName][noRefName].byPart[partOf] = new Set();
-                        }
-                        jurisdictionLawStats[noRefName][noRefName].byPart[partOf].add(articleId);
-                    }
-                    
-                    // 各国の分析を更新
-                    for (const jurisdiction of jurisdictionsInArticle) {
-                        if (!jurisdictionStats[jurisdiction]) {
-                            jurisdictionStats[jurisdiction] = {};
-                        }
-                        if (!jurisdictionStats[jurisdiction][partOf]) {
-                            jurisdictionStats[jurisdiction][partOf] = new Set();
-                        }
-                        jurisdictionStats[jurisdiction][partOf].add(articleId);
-                    }
                 }
             }
-
-            // Setをサイズに変換
-            const partofCounts = {};
-            for (const [key, value] of Object.entries(partofArticles)) {
-                partofCounts[key] = value.size;
-            }
-
-            const jurisdictionCounts = {};
-            for (const [jurisdiction, parts] of Object.entries(jurisdictionStats)) {
-                jurisdictionCounts[jurisdiction] = {};
-                for (const [part, articles] of Object.entries(parts)) {
-                    jurisdictionCounts[jurisdiction][part] = articles.size;
-                }
-            }
-
-            // 法律ごとの分析を数値に変換
-            const jurisdictionLawCounts = {};
-            for (const [jurisdiction, laws] of Object.entries(jurisdictionLawStats)) {
-                jurisdictionLawCounts[jurisdiction] = {};
-                for (const [law, data] of Object.entries(laws)) {
-                    jurisdictionLawCounts[jurisdiction][law] = {
-                        total: data.total.size,
-                        byPart: {}
-                    };
-                    for (const [part, articles] of Object.entries(data.byPart)) {
-                        jurisdictionLawCounts[jurisdiction][law].byPart[part] = articles.size;
-                    }
-                }
-            }
-
-            // partOfの順序を自動抽出（データの出現順を維持）
-            const partofOrder = [];
-            for (const draft of data.drafts) {
-                // partOfがない場合はスキップ
-                if (!draft.partOf) {
-                    continue;
-                }
-                const partOf = draft.partOf;
-                if (!partofOrder.includes(partOf)) {
-                    partofOrder.push(partOf);
-                }
-            }
-
+            
             return {
-                partofCounts,
-                jurisdictionCounts,
-                jurisdictionLawCounts,
-                partofOrder,
-                totalArticles: Object.values(partofCounts).reduce((a, b) => a + b, 0),
-                // 追加データ
-                jurisdictionLawStats, // 生の統計データ（IDセットを含む）
+                partofArticles,
+                jurisdictionStats,
+                jurisdictionLawStats,
                 articleMap
             };
         }
 
         // テーブルを表示する関数
-        function displayTable(stats) {
-            const { partofCounts, jurisdictionCounts, jurisdictionLawCounts, partofOrder, totalArticles, jurisdictionLawStats, articleMap } = stats;
+        function displayTable({ partofArticles, jurisdictionStats, jurisdictionLawStats, articleMap }) {
+            // partOfの順序をデータから動的に取得（出現順）
+            const partofOrder = Object.keys(partofArticles);
             
-            // 表示する国のリスト(参照数の多い順、全て表示)
-            const allJurisdictions = Object.entries(jurisdictionCounts).map(([j, counts]) => {
-                return {
-                    name: j,
-                    total: Object.values(counts).reduce((a, b) => a + b, 0)
-                };
-            });
-            allJurisdictions.sort((a, b) => b.total - a.total);
-            const topJurisdictions = allJurisdictions;
-
-            // テーブルのHTMLを生成
+            // 各partOfの条文数を計算
+            const partofCounts = {};
+            for (const part of partofOrder) {
+                if (partofArticles[part]) {
+                    partofCounts[part] = partofArticles[part].size;
+                }
+            }
+            
+            // 全条文数を計算
+            const totalArticles = Object.values(partofCounts).reduce((a, b) => a + b, 0);
+            
+            // 国ごとの総参照数を計算してソート
+            const jurisdictionTotals = [];
+            for (const [jurisdiction, stats] of Object.entries(jurisdictionStats)) {
+                const allArticles = new Set();
+                for (const articles of Object.values(stats)) {
+                    for (const id of articles) {
+                        allArticles.add(id);
+                    }
+                }
+                jurisdictionTotals.push({
+                    name: jurisdiction,
+                    total: allArticles.size
+                });
+            }
+            jurisdictionTotals.sort((a, b) => b.total - a.total);
+            
+            // 上位の国を取得
+            const topJurisdictions = jurisdictionTotals;
+            
+            // 国ごとのpartOf別カウントを計算
+            const jurisdictionCounts = {};
+            const jurisdictionLawCounts = {};
+            
+            for (const jurisdiction of topJurisdictions) {
+                jurisdictionCounts[jurisdiction.name] = {};
+                jurisdictionLawCounts[jurisdiction.name] = {};
+                
+                const stats = jurisdictionStats[jurisdiction.name];
+                for (const part of partofOrder) {
+                    if (stats[part]) {
+                        jurisdictionCounts[jurisdiction.name][part] = stats[part].size;
+                    }
+                }
+                
+                // 法律ごとのカウント
+                const lawStats = jurisdictionLawStats[jurisdiction.name];
+                if (lawStats) {
+                    for (const [lawName, data] of Object.entries(lawStats)) {
+                        jurisdictionLawCounts[jurisdiction.name][lawName] = {
+                            total: data.total.size,
+                            byPart: {}
+                        };
+                        for (const [part, articles] of Object.entries(data.byPart)) {
+                            jurisdictionLawCounts[jurisdiction.name][lawName].byPart[part] = articles.size;
+                        }
+                    }
+                }
+            }
+            
+            // HTMLを生成
             let html = `
                 <div class="table-wrapper">
-                    <table id="main-table">
+                    <table>
                         <thead>
                             <tr>
-                                <th class="country">国 / 分野</th>
-                                <th class="category">総数<br>(${totalArticles})</th>`;
+                                <th class="country">法域</th>
+                                <th class="category">計<br>(${totalArticles})</th>`;
             
             // partOfごとのカラムヘッダーを追加
             for (const part of partofOrder) {
@@ -720,10 +718,30 @@
                     if (article) {
                         // \n を <br> に置換して表示
                         const formattedText = article.text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+                        
+                        // リンクが存在するかチェック
+                        const articleId = article.article_id || id;
+                        const linkData = articleLinks[articleId];
+                        
+                        // リンクヒントを生成（配列の場合は複数リンクに対応）
+                        let linkHint = '';
+                        if (linkData) {
+                            if (Array.isArray(linkData)) {
+                                // 配列の場合：複数のリンクを表示
+                                linkHint = linkData.map((url, index) => 
+                                    `<div class="article-link-hint" data-url="${url}">▶ 詳細ページへ (${index + 1})</div>`
+                                ).join('');
+                            } else {
+                                // 文字列の場合：単一リンク
+                                linkHint = `<div class="article-link-hint" data-url="${linkData}">▶ 詳細ページへ</div>`;
+                            }
+                        }
+                        
                         html += `
                             <div class="article-item">
                                 <div class="article-id">${article.draft}</div>
                                 <div class="article-text">${formattedText}</div>
+                                ${linkHint}
                             </div>
                         `;
                     }
@@ -731,6 +749,18 @@
             }
             
             modalBody.innerHTML = html;
+            
+            // クリック可能なリンクヒントにイベントリスナーを追加
+            const clickableLinks = modalBody.querySelectorAll('.article-link-hint');
+            clickableLinks.forEach(el => {
+                el.addEventListener('click', function() {
+                    const url = this.getAttribute('data-url');
+                    if (url) {
+                        window.open(url, '_blank');
+                    }
+                });
+            });
+            
             modal.style.display = 'block';
         }
 
