@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>法令参照分析</title>
+    <style>
+        body {
+            font-family: 'Meiryo', 'Yu Gothic', sans-serif;
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+            background-color: #fafafa;
+            color: #212121;
+            font-size: 15px;
+        }
+        
+        /* ヘッダー */
+        .site-header {
+            background-color: #1e3a5f;
+            color: white;
+            padding: 8px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .site-header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        .site-header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 400;
+            color: white;
+            display: inline;
+            line-height: 1.2;
+        }
+        .site-header h1 a {
+            color: white;
+            text-decoration: none;
+        }
+        .site-header h1 a:hover {
+            text-decoration: underline;
+        }
+        .site-header .subtitle {
+            font-size: 16px;
+            color: white;
+            font-weight: 300;
+            font-style: italic;
+            display: inline;
+            margin-left: 12px;
+        }
+        
+        /* メインコンテンツエリア */
+        .main-content {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* 表内に追加した説明文のスタイル */
+        .data-explanation-in-wrapper {
+            margin: 0;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .data-explanation-in-wrapper a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        .data-explanation-in-wrapper a:hover {
+            text-decoration: underline;
+        }
+
+        /* フッター */
+        .footer {
+            background-color: white;
+            color: #000000;
+            padding: 15px 0;
+            margin-top: 50px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        .copyright-text {
+            font-size: 13px;
+            margin-bottom: 10px;
+            color: #000000;
+        }
+        .copyright-text a {
+            color: #000000;
+            text-decoration: none;
+        }
+        .copyright-text a:hover {
+            text-decoration: underline;
+        }
+        .cc-license-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: #000000;
+        }
+        .cc-logo {
+            height: 31px;
+            width: 88px;
+        }
+        .cc-license-row a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        .cc-license-row a:hover {
+            text-decoration: underline;
+        }
+        .main-content h1 {
+            text-align: left;
+            color: #212121;
+            margin-bottom: 30px;
+            margin-top: 30px;
+            font-size: 28px;
+            width: max-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .loading {
+            text-align: left;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #212121;
+        }
+        .table-wrapper {
+            background-color: white;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            width: max-content;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            margin: 0;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border: 1px solid #e0e0e0;
+            font-size: 15px;
+        }
+        th {
+            background-color: #546e7a;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 15px;
+        }
+        th.country {
+            text-align: left;
+            width: 28%;
+            min-width: 220px;
+        }
+        th.category {
+            text-align: center;
+            width: 12%;
+            min-width: 75px;
+        }
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        td.country {
+            font-weight: 600;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            position: relative;
+            padding-left: 35px;
+            color: #212121;
+            font-size: 15px;
+        }
+        td.country::before {
+            content: '▶';
+            position: absolute;
+            left: 12px;
+            transition: transform 0.3s;
+            font-size: 0.9em;
+            color: #212121;
+        }
+        tr.expanded td.country::before {
+            transform: rotate(90deg);
+        }
+        td.number {
+            text-align: right;
+            color: #212121;
+            font-size: 15px;
+        }
+        .percentage {
+            color: #212121;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+        .total-col {
+            background-color: #fff8e1;
+            font-weight: 600;
+        }
+        .error {
+            text-align: left;
+            padding: 40px;
+            color: #c62828;
+            font-size: 1.1em;
+        }
+        
+        /* アコーディオン用のスタイル */
+        .law-row {
+            display: none;
+            background-color: #f5f7f9;
+        }
+        .law-row.show {
+            display: table-row;
+        }
+        .law-name-cell {
+            padding-left: 50px;
+            font-size: 14px;
+            color: #424242;
+        }
+        .clickable-count {
+            cursor: pointer;
+            color: #1565c0;
+            text-decoration: underline;
+        }
+        .clickable-count:hover {
+            color: #0d47a1;
+            background-color: #e3f2fd;
+        }
+
+        /* モーダルスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #1e3a5f;
+        }
+        .article-list {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .article-item {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .article-item:last-child {
+            border-bottom: none;
+        }
+        .article-id {
+            font-weight: bold;
+            color: #546e7a;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        .article-text {
+            white-space: pre-wrap;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #1e3a5f;
+        }
+        /* リンク付き条文のスタイル */
+        .article-link-hint {
+            font-size: 13px;
+            color: #1565c0;
+            margin-top: 8px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .article-link-hint:hover {
+            color: #0d47a1;
+            text-decoration: underline;
+        }
+        .article-link-hint:hover {
+            color: #0d47a1;
+            text-decoration: underline;
+        }
+        
+        /* コントロールパネル */
+        .controls {
+            margin-bottom: 0;
+            background-color: white;
+            padding: 10px 30px;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -1px 2px rgba(0,0,0,0.05), 1px 0 2px rgba(0,0,0,0.05), -1px 0 2px rgba(0,0,0,0.05);
+            display: table;
+            margin-left: auto;
+            margin-right: auto;
+            border-bottom: 1px solid #eee;
+        }
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 500;
+            color: #424242;
+        }
+        .radio-label input {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-header-content">
+            <h1><a href="https://law-platform.jp/">法律情報基盤<span class="subtitle">- Legal Information Platform -</span></a></h1>
+        </div>
+    </header>
+    
+    <div class="main-content">
+        <h1 id="main-title">法令参照分析</h1>
+        
+        <div class="controls">
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="aggregation-type" value="partOf" checked> 分野別
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="aggregation-type" value="ana"> 起草者別
+                </label>
+            </div>
+        </div>
+
+        <div id="table-container" class="loading">データを読み込み中...</div>
+    </div>
+    
+    <script>
+        // グローバル変数としてデータを保持
+        let globalJsonData = null;
+        let articleLinks = {};
+
+        // JSONデータの読み込みと処理
+        async function loadAndProcessData() {
+            try {
+                // JSONファイルを読み込み
+                const response = await fetch('129a0089d.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                globalJsonData = await response.json();
+                
+                // リンクマッピングファイルを読み込み（オプション）
+                try {
+                    const linksResponse = await fetch('129a0089d_links.json');
+                    if (linksResponse.ok) {
+                        articleLinks = await linksResponse.json();
+                        console.log('リンクマッピングを読み込みました:', Object.keys(articleLinks).length, '件');
+                    }
+                } catch (linkError) {
+                    console.log('リンクマッピングファイルが見つかりません（オプション）');
+                }
+                
+                // JSONの最初のキー名を取得してタイトルに使用
+                const firstKey = Object.keys(globalJsonData)[0];
+                const LAW_TITLE = firstKey + ' 参照分析';
+                
+                // タイトルを設定
+                document.querySelector('#main-title').textContent = LAW_TITLE;
+                document.title = firstKey + ' 法令参照分析';
+                
+                // 初期表示（分野別）
+                updateTable('partOf');
+                
+                // ラジオボタンのイベントリスナー設定
+                document.querySelectorAll('input[name="aggregation-type"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        updateTable(e.target.value);
+                    });
+                });
+                
+            } catch (error) {
+                document.getElementById('table-container').innerHTML = 
+                    `<div class="error">エラー: データの読み込みに失敗しました。<br>${error.message}</div>`;
+                console.error('Error:', error);
+            }
+        }
+
+        // テーブルを更新する関数
+        function updateTable(groupBy) {
+            if (!globalJsonData) return;
+            
+            // データの処理
+            const processedData = processData(globalJsonData, groupBy);
+            
+            // テーブルの表示
+            displayTable(processedData, groupBy);
+        }
+
+        // データを処理する関数
+        function processData(jsonData, groupBy) {
+            // まず、トップレベルのキーを取得
+            const topLevelKeys = Object.keys(jsonData);
+            let data = { drafts: [] };
+
+            // トップレベルのキーが配列の場合、その中身を取得
+            if (topLevelKeys.length > 0) {
+                const firstKey = topLevelKeys[0];
+                if (Array.isArray(jsonData[firstKey])) {
+                    data.drafts = jsonData[firstKey];
+                }
+            }
+            
+            // グループ（partOf または ana）ごとの統計
+            const groupArticles = {};
+            // 国ごと・グループごとの統計
+            const jurisdictionStats = {};
+            // 国ごと・法律ごとの統計
+            const jurisdictionLawStats = {};
+            // 条文IDとテキストのマッピング
+            const articleMap = {};
+            
+            for (const draft of data.drafts) {
+                // groupByパラメータに基づいてグループキーを決定
+                // anaの場合は値がない場合があるので、その場合は「不明」などにするか、空文字にする
+                let groupKey = draft[groupBy] || '不明';
+                const draftName = draft.draft || '';
+                
+                if (!groupArticles[groupKey]) {
+                    groupArticles[groupKey] = new Set();
+                }
+                
+                for (let idx = 0; idx < draft.articles.length; idx++) {
+                    const item = draft.articles[idx];
+                    // article_id があればそれを使用、なければ従来通りインデックスベースで生成
+                    const articleId = item.article_id || `${draftName}_${idx}`;
+                    
+                    // 条文テキストを保存（article_idも保存）
+                    articleMap[articleId] = {
+                        text: item.article_text,
+                        draft: draftName,
+                        article_id: item.article_id || null  // 元のarticle_idを保存
+                    };
+                    
+                    groupArticles[groupKey].add(articleId);
+                    
+                    // 参照情報を処理
+                    if (item.references && Array.isArray(item.references)) {
+                        for (const ref of item.references) {
+                            const jurisdiction = ref.jurisdiction;
+                            
+                            if (!jurisdictionStats[jurisdiction]) {
+                                jurisdictionStats[jurisdiction] = {};
+                            }
+                            if (!jurisdictionStats[jurisdiction][groupKey]) {
+                                jurisdictionStats[jurisdiction][groupKey] = new Set();
+                            }
+                            jurisdictionStats[jurisdiction][groupKey].add(articleId);
+                            
+                            // 法律ごとの統計
+                            if (!jurisdictionLawStats[jurisdiction]) {
+                                jurisdictionLawStats[jurisdiction] = {};
+                            }
+                            
+                            if (ref.laws && typeof ref.laws === 'object') {
+                                for (const lawName of Object.keys(ref.laws)) {
+                                    if (!jurisdictionLawStats[jurisdiction][lawName]) {
+                                        jurisdictionLawStats[jurisdiction][lawName] = {
+                                            total: new Set(),
+                                            byGroup: {}
+                                        };
+                                    }
+                                    jurisdictionLawStats[jurisdiction][lawName].total.add(articleId);
+                                    
+                                    if (!jurisdictionLawStats[jurisdiction][lawName].byGroup[groupKey]) {
+                                        jurisdictionLawStats[jurisdiction][lawName].byGroup[groupKey] = new Set();
+                                    }
+                                    jurisdictionLawStats[jurisdiction][lawName].byGroup[groupKey].add(articleId);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return {
+                groupArticles,
+                jurisdictionStats,
+                jurisdictionLawStats,
+                articleMap
+            };
+        }
+
+        // テーブルを表示する関数
+        function displayTable({ groupArticles, jurisdictionStats, jurisdictionLawStats, articleMap }, groupBy) {
+            // グループの順序を決定
+            let groupOrder = [];
+            
+            if (groupBy === 'ana') {
+                // 起草者別の場合は固定順序
+                const fixedOrder = ['穂積陳重', '富井政章', '梅謙次郎'];
+                const presentGroups = Object.keys(groupArticles);
+                
+                // 固定順序にあるものを先に追加
+                for (const name of fixedOrder) {
+                    if (presentGroups.includes(name)) {
+                        groupOrder.push(name);
+                    }
+                }
+                
+                // 固定順序に含まれないもの（もしあれば）を末尾に追加
+                for (const name of presentGroups) {
+                    if (!fixedOrder.includes(name)) {
+                        groupOrder.push(name);
+                    }
+                }
+            } else {
+                // その他の場合はデータ順（出現順）
+                groupOrder = Object.keys(groupArticles);
+            }
+            
+            // 各グループの条文数を計算
+            const groupCounts = {};
+            for (const group of groupOrder) {
+                if (groupArticles[group]) {
+                    groupCounts[group] = groupArticles[group].size;
+                }
+            }
+            
+            // 全条文数を計算
+            const totalArticles = Object.values(groupCounts).reduce((a, b) => a + b, 0);
+            
+            // 国ごとの総参照数を計算してソート
+            const jurisdictionTotals = [];
+            for (const [jurisdiction, stats] of Object.entries(jurisdictionStats)) {
+                const allArticles = new Set();
+                for (const articles of Object.values(stats)) {
+                    for (const id of articles) {
+                        allArticles.add(id);
+                    }
+                }
+                jurisdictionTotals.push({
+                    name: jurisdiction,
+                    total: allArticles.size
+                });
+            }
+            jurisdictionTotals.sort((a, b) => b.total - a.total);
+            
+            // 上位の国を取得
+            const topJurisdictions = jurisdictionTotals;
+            
+            // 国ごとのグループ別カウントを計算
+            const jurisdictionCounts = {};
+            const jurisdictionLawCounts = {};
+            
+            for (const jurisdiction of topJurisdictions) {
+                jurisdictionCounts[jurisdiction.name] = {};
+                jurisdictionLawCounts[jurisdiction.name] = {};
+                
+                const stats = jurisdictionStats[jurisdiction.name];
+                for (const group of groupOrder) {
+                    if (stats[group]) {
+                        jurisdictionCounts[jurisdiction.name][group] = stats[group].size;
+                    }
+                }
+                
+                // 法律ごとのカウント
+                const lawStats = jurisdictionLawStats[jurisdiction.name];
+                if (lawStats) {
+                    for (const [lawName, data] of Object.entries(lawStats)) {
+                        jurisdictionLawCounts[jurisdiction.name][lawName] = {
+                            total: data.total.size,
+                            byGroup: {}
+                        };
+                        for (const [group, articles] of Object.entries(data.byGroup)) {
+                            jurisdictionLawCounts[jurisdiction.name][lawName].byGroup[group] = articles.size;
+                        }
+                    }
+                }
+            }
+            
+            // HTMLを生成
+            let html = `
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="country">法域</th>
+                                <th class="category">計<br>(${totalArticles})</th>`;
+            
+            // グループごとのカラムヘッダーを追加
+            for (const group of groupOrder) {
+                if (groupCounts[group]) {
+                    html += `<th class="category">${group}<br>(${groupCounts[group]})</th>`;
+                }
+            }
+            
+            html += `
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            // 各国のデータ行を追加
+            for (const jurisdiction of topJurisdictions) {
+                const counts = jurisdictionCounts[jurisdiction.name];
+                const totalRefs = jurisdiction.total;
+                const totalPercentage = (totalRefs / totalArticles * 100).toFixed(1);
+                
+                html += `
+                            <tr class="main-row" data-jurisdiction="${jurisdiction.name}">
+                                <td class="country">${jurisdiction.name}</td>
+                                <td class="number total-col">${totalRefs}<span class="percentage">(${totalPercentage}%)</span></td>`;
+                
+                for (const group of groupOrder) {
+                    if (groupCounts[group]) {
+                        const count = counts[group] || 0;
+                        const groupTotal = groupCounts[group];
+                        const percentage = groupTotal > 0 ? (count / groupTotal * 100).toFixed(1) : '0.0';
+                        html += `<td class="number">${count}<span class="percentage">(${percentage}%)</span></td>`;
+                    }
+                }
+                
+                html += `
+                            </tr>`;
+                
+                // 法律ごとの行を追加
+                const lawCounts = jurisdictionLawCounts[jurisdiction.name];
+                if (lawCounts && Object.keys(lawCounts).length > 0) {
+                    const sortedLaws = Object.entries(lawCounts).sort((a, b) => b[1].total - a[1].total);
+                    
+                    for (const [law, data] of sortedLaws) {
+                        const lawTotalPercentage = (data.total / totalArticles * 100).toFixed(1);
+                        
+                        html += `
+                            <tr class="law-row" data-parent="${jurisdiction.name}">
+                                <td class="law-name-cell">${law}</td>
+                                <td class="number clickable-count" data-jurisdiction="${jurisdiction.name}" data-law="${law}" data-part="ALL">${data.total}<span class="percentage">(${lawTotalPercentage}%)</span></td>`;
+                        
+                        for (const group of groupOrder) {
+                            if (groupCounts[group]) {
+                                const count = data.byGroup[group] || 0;
+                                const groupTotal = groupCounts[group];
+                                const percentage = groupTotal > 0 && count > 0 ? (count / groupTotal * 100).toFixed(1) : '0.0';
+                                const percentageText = count > 0 ? `<span class="percentage">(${percentage}%)</span>` : '';
+                                
+                                const clickableClass = count > 0 ? 'clickable-count' : '';
+                                const dataAttrs = count > 0 ? `data-jurisdiction="${jurisdiction.name}" data-law="${law}" data-part="${group}"` : '';
+                                
+                                html += `<td class="number ${clickableClass}" ${dataAttrs}>${count}${percentageText}</td>`;
+                            }
+                        }
+                        
+                        html += `
+                            </tr>`;
+                    }
+                }
+            }
+            
+            html += `
+                        </tbody>
+                    </table>
+                    
+                    <p class="data-explanation-in-wrapper">
+                        詳細については、<a href="https://doi.org/10.18999/nujlp.274.3" target="_blank">「外国法の参照に関する明治民法と明治商法の比較 」</a>を参照してください。
+                    </p>
+                </div>`; // table-wrapperを閉じる
+            
+            document.getElementById('table-container').innerHTML = html;
+            
+            // クリックイベントを追加
+            addAccordionListeners();
+            addCountClickListeners(jurisdictionLawStats, articleMap);
+        }
+
+        // アコーディオンのクリックリスナーを追加
+        function addAccordionListeners() {
+            const mainRows = document.querySelectorAll('.main-row');
+            
+            mainRows.forEach(row => {
+                const countryCell = row.querySelector('.country');
+                
+                countryCell.addEventListener('click', function(e) {
+                    const jurisdiction = row.getAttribute('data-jurisdiction');
+                    const lawRows = document.querySelectorAll(`.law-row[data-parent="${jurisdiction}"]`);
+                    
+                    // トグル
+                    if (row.classList.contains('expanded')) {
+                        row.classList.remove('expanded');
+                        lawRows.forEach(lawRow => lawRow.classList.remove('show'));
+                    } else {
+                        row.classList.add('expanded');
+                        lawRows.forEach(lawRow => lawRow.classList.add('show'));
+                    }
+                });
+                
+                // ホバー効果を強調
+                countryCell.style.cursor = 'pointer';
+            });
+        }
+
+        // 数値セルのクリックリスナーを追加
+        function addCountClickListeners(jurisdictionLawStats, articleMap) {
+            const countCells = document.querySelectorAll('.clickable-count');
+            
+            countCells.forEach(cell => {
+                cell.addEventListener('click', function(e) {
+                    e.stopPropagation(); // 親のクリックイベント（もしあれば）を防止
+                    const jurisdiction = this.getAttribute('data-jurisdiction');
+                    const lawName = this.getAttribute('data-law');
+                    const part = this.getAttribute('data-part');
+                    
+                    if (jurisdictionLawStats[jurisdiction] && jurisdictionLawStats[jurisdiction][lawName]) {
+                        let articleIds;
+                        if (part === 'ALL') {
+                            articleIds = jurisdictionLawStats[jurisdiction][lawName].total;
+                        } else {
+                            articleIds = jurisdictionLawStats[jurisdiction][lawName].byGroup[part];
+                        }
+                        
+                        if (articleIds) {
+                            showModal(jurisdiction, lawName, part, articleIds, articleMap);
+                        }
+                    }
+                });
+            });
+        }
+
+        // モーダルを表示する関数
+        function showModal(jurisdiction, lawName, part, articleIds, articleMap) {
+            const modal = document.getElementById('articleModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            let title = `${jurisdiction} - ${lawName} を参照している条文`;
+            if (part !== 'ALL') {
+                title += ` （${part}）`;
+            }
+            
+            modalTitle.textContent = title;
+            
+            let html = '';
+            
+            // IDのセットを配列に変換してソート（必要に応じて）
+            const sortedIds = Array.from(articleIds).sort();
+            
+            if (sortedIds.length === 0) {
+                html = '<p>該当する条文がありません。</p>';
+            } else {
+                for (const id of sortedIds) {
+                    const article = articleMap[id];
+                    if (article) {
+                        // \n を <br> に置換して表示
+                        const formattedText = article.text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+                        
+                        // リンクが存在するかチェック
+                        const articleId = article.article_id || id;
+                        const linkData = articleLinks[articleId];
+                        
+                        // リンクヒントを生成（配列の場合は複数リンクに対応）
+                        let linkHint = '';
+                        if (linkData) {
+                            if (Array.isArray(linkData)) {
+                                // 配列の場合：複数のリンクを表示
+                                linkHint = linkData.map((url, index) => 
+                                    `<div class="article-link-hint" data-url="${url}">▶ 詳細ページへ (${index + 1})</div>`
+                                ).join('');
+                            } else {
+                                // 文字列の場合：単一リンク
+                                linkHint = `<div class="article-link-hint" data-url="${linkData}">▶ 詳細ページへ</div>`;
+                            }
+                        }
+                        
+                        html += `
+                            <div class="article-item">
+                                <div class="article-id">${article.draft}</div>
+                                <div class="article-text">${formattedText}</div>
+                                ${linkHint}
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            modalBody.innerHTML = html;
+            
+            // クリック可能なリンクヒントにイベントリスナーを追加
+            const clickableLinks = modalBody.querySelectorAll('.article-link-hint');
+            clickableLinks.forEach(el => {
+                el.addEventListener('click', function() {
+                    const url = this.getAttribute('data-url');
+                    if (url) {
+                        window.open(url, '_blank');
+                    }
+                });
+            });
+            
+            modal.style.display = 'block';
+        }
+
+        // モーダルを閉じる処理
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('articleModal');
+            const span = document.getElementsByClassName("close")[0];
+            
+            if (span) {
+                span.onclick = function() {
+                    modal.style.display = "none";
+                }
+            }
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        });
+
+        // ページ読み込み時に実行
+        window.addEventListener('DOMContentLoaded', loadAndProcessData);
+    </script>
+    
+    <div class="footer">
+        <div class="footer-content">
+            <div class="copyright-text">
+                © 2017-2025 <a href="https://researchmap.jp/30419428" target="_blank">SANO Tomoya</a>
+            </div>
+            <div class="cc-license-row">
+                <img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="Creative Commons License" class="cc-logo">
+                <span>このデータベースは、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">クリエイティブ・コモンズ 表示 4.0 ライセンス</a>のもとで利用できます。</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h2 id="modalTitle">条文参照</h2>
+            </div>
+            <div id="modalBody" class="article-list">
+                </div>
+        </div>
+    </div>
+</body>
+</html>
