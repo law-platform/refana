@@ -377,7 +377,7 @@
                     <input type="radio" name="aggregation-type" value="partOf" checked> 分野別
                 </label>
                 <label class="radio-label">
-                    <input type="radio" name="aggregation-type" value="ana"> 起草者別
+                    <input type="radio" name="aggregation-type" value="explainer"> 議案説明者別
                 </label>
             </div>
         </div>
@@ -385,10 +385,40 @@
         <div id="table-container" class="loading">データを読み込み中...</div>
     </div>
     
+    <!-- モーダルウィンドウ -->
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h2 id="modalTitle">モーダルタイトル</h2>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="article-list" id="articleList">
+                    <!-- 条文がここに挿入されます -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="copyright-text">
+                <a href="https://law-platform.jp/">法律情報基盤</a> - Legal Information Platform
+            </div>
+            <div class="cc-license-row">
+                <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
+                    <img alt="クリエイティブ・コモンズ・ライセンス" class="cc-logo" src="https://i.creativecommons.org/l/by/4.0/88x31.png" />
+                </a>
+                この 作品 は <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">クリエイティブ・コモンズ 表示 4.0 国際 ライセンス</a>の下に提供されています。
+            </div>
+        </div>
+    </footer>
+
     <script>
         // グローバル変数としてデータを保持
         let globalJsonData = null;
         let articleLinks = {};
+        let drafterMap = {};
 
         // JSONデータの読み込みと処理
         async function loadAndProcessData() {
@@ -410,6 +440,18 @@
                 } catch (linkError) {
                     console.log('リンクマッピングファイルが見つかりません（オプション）');
                 }
+
+                // 起草者（議案説明者）CSVファイルを読み込み
+                try {
+                    const csvResponse = await fetch('129a0089d_drafter.csv');
+                    if (csvResponse.ok) {
+                        const csvText = await csvResponse.text();
+                        parseDrafterCsv(csvText);
+                        console.log('起草者データを読み込みました:', Object.keys(drafterMap).length, '件');
+                    }
+                } catch (csvError) {
+                    console.log('起草者データファイルが見つかりません');
+                }
                 
                 // JSONの最初のキー名を取得してタイトルに使用
                 const firstKey = Object.keys(globalJsonData)[0];
@@ -429,10 +471,41 @@
                     });
                 });
                 
+                // モーダルの閉じるボタン設定
+                const modal = document.getElementById('articleModal');
+                const span = document.getElementsByClassName("close")[0];
+                span.onclick = function() {
+                    modal.style.display = "none";
+                }
+                window.onclick = function(event) {
+                    if (event.target == modal) {
+                        modal.style.display = "none";
+                    }
+                }
+                
             } catch (error) {
                 document.getElementById('table-container').innerHTML = 
                     `<div class="error">エラー: データの読み込みに失敗しました。<br>${error.message}</div>`;
                 console.error('Error:', error);
+            }
+        }
+
+        // CSVをパースしてマップを作成
+        function parseDrafterCsv(csvText) {
+            const lines = csvText.split(/\r\n|\n/);
+            // ヘッダー行をスキップ
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const parts = line.split(',');
+                if (parts.length >= 2) {
+                    const id = parts[0].trim();
+                    const explainer = parts[1].trim();
+                    if (id && explainer) {
+                        drafterMap[id] = explainer;
+                    }
+                }
             }
         }
 
@@ -461,7 +534,7 @@
                 }
             }
             
-            // グループ（partOf または ana）ごとの統計
+            // グループ（partOf または explainer）ごとの統計
             const groupArticles = {};
             // 国ごと・グループごとの統計
             const jurisdictionStats = {};
@@ -471,19 +544,24 @@
             const articleMap = {};
             
             for (const draft of data.drafts) {
-                // groupByパラメータに基づいてグループキーを決定
-                // anaの場合は値がない場合があるので、その場合は「不明」などにするか、空文字にする
-                let groupKey = draft[groupBy] || '不明';
                 const draftName = draft.draft || '';
-                
-                if (!groupArticles[groupKey]) {
-                    groupArticles[groupKey] = new Set();
-                }
                 
                 for (let idx = 0; idx < draft.articles.length; idx++) {
                     const item = draft.articles[idx];
                     // article_id があればそれを使用、なければ従来通りインデックスベースで生成
                     const articleId = item.article_id || `${draftName}_${idx}`;
+                    
+                    // グループキーを決定
+                    let groupKey = '不明';
+                    if (groupBy === 'explainer') {
+                        // 議案説明者別の場合、CSVデータから参照
+                        if (drafterMap[articleId]) {
+                            groupKey = drafterMap[articleId];
+                        }
+                    } else {
+                        // その他（分野別など）の場合はJSONデータから参照
+                        groupKey = draft[groupBy] || '不明';
+                    }
                     
                     // 条文テキストを保存（article_idも保存）
                     articleMap[articleId] = {
@@ -492,6 +570,9 @@
                         article_id: item.article_id || null  // 元のarticle_idを保存
                     };
                     
+                    if (!groupArticles[groupKey]) {
+                        groupArticles[groupKey] = new Set();
+                    }
                     groupArticles[groupKey].add(articleId);
                     
                     // 参照情報を処理
@@ -546,8 +627,8 @@
             // グループの順序を決定
             let groupOrder = [];
             
-            if (groupBy === 'ana') {
-                // 起草者別の場合は固定順序
+            if (groupBy === 'explainer') {
+                // 議案説明者別の場合は固定順序
                 const fixedOrder = ['穂積陳重', '富井政章', '梅謙次郎'];
                 const presentGroups = Object.keys(groupArticles);
                 
@@ -798,98 +879,35 @@
             } else {
                 for (const id of sortedIds) {
                     const article = articleMap[id];
-                    if (article) {
-                        // \n を <br> に置換して表示
-                        const formattedText = article.text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
-                        
-                        // リンクが存在するかチェック
-                        const articleId = article.article_id || id;
-                        const linkData = articleLinks[articleId];
-                        
-                        // リンクヒントを生成（配列の場合は複数リンクに対応）
-                        let linkHint = '';
-                        if (linkData) {
-                            if (Array.isArray(linkData)) {
-                                // 配列の場合：複数のリンクを表示
-                                linkHint = linkData.map((url, index) => 
-                                    `<div class="article-link-hint" data-url="${url}">▶ 詳細ページへ (${index + 1})</div>`
-                                ).join('');
-                            } else {
-                                // 文字列の場合：単一リンク
-                                linkHint = `<div class="article-link-hint" data-url="${linkData}">▶ 詳細ページへ</div>`;
-                            }
-                        }
-                        
-                        html += `
-                            <div class="article-item">
-                                <div class="article-id">${article.draft}</div>
-                                <div class="article-text">${formattedText}</div>
-                                ${linkHint}
+                    let linkHtml = '';
+                    
+                    // リンクマッピングがあればリンクを表示
+                    if (articleLinks && article.article_id && articleLinks[article.article_id]) {
+                        linkHtml = `
+                            <div class="article-link-hint" onclick="window.open('${articleLinks[article.article_id]}', '_blank')">
+                                🔗 条文の該当箇所を表示
                             </div>
                         `;
                     }
+                    
+                    html += `
+                        <div class="article-item">
+                            <div class="article-id">
+                                ${article.article_id ? article.article_id : id} (${article.draft})
+                            </div>
+                            <div class="article-text">${article.text}</div>
+                            ${linkHtml}
+                        </div>
+                    `;
                 }
             }
             
-            modalBody.innerHTML = html;
-            
-            // クリック可能なリンクヒントにイベントリスナーを追加
-            const clickableLinks = modalBody.querySelectorAll('.article-link-hint');
-            clickableLinks.forEach(el => {
-                el.addEventListener('click', function() {
-                    const url = this.getAttribute('data-url');
-                    if (url) {
-                        window.open(url, '_blank');
-                    }
-                });
-            });
-            
-            modal.style.display = 'block';
+            document.getElementById('articleList').innerHTML = html;
+            modal.style.display = "block";
         }
-
-        // モーダルを閉じる処理
-        document.addEventListener('DOMContentLoaded', function() {
-            const modal = document.getElementById('articleModal');
-            const span = document.getElementsByClassName("close")[0];
-            
-            if (span) {
-                span.onclick = function() {
-                    modal.style.display = "none";
-                }
-            }
-            
-            window.onclick = function(event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
-                }
-            }
-        });
-
-        // ページ読み込み時に実行
-        window.addEventListener('DOMContentLoaded', loadAndProcessData);
+        
+        // 開始
+        loadAndProcessData();
     </script>
-    
-    <div class="footer">
-        <div class="footer-content">
-            <div class="copyright-text">
-                © 2017-2025 <a href="https://researchmap.jp/30419428" target="_blank">SANO Tomoya</a>
-            </div>
-            <div class="cc-license-row">
-                <img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="Creative Commons License" class="cc-logo">
-                <span>このデータベースは、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">クリエイティブ・コモンズ 表示 4.0 ライセンス</a>のもとで利用できます。</span>
-            </div>
-        </div>
-    </div>
-
-    <div id="articleModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close">&times;</span>
-                <h2 id="modalTitle">条文参照</h2>
-            </div>
-            <div id="modalBody" class="article-list">
-                </div>
-        </div>
-    </div>
 </body>
 </html>
