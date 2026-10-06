@@ -15,42 +15,6 @@
             font-size: 15px;
         }
         
-        /* ヘッダー */
-        .site-header {
-            background-color: #1e3a5f;
-            color: white;
-            padding: 8px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .site-header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        .site-header h1 {
-            margin: 0;
-            font-size: 26px;
-            font-weight: 400;
-            color: white;
-            display: inline;
-            line-height: 1.2;
-        }
-        .site-header h1 a {
-            color: white;
-            text-decoration: none;
-        }
-        .site-header h1 a:hover {
-            text-decoration: underline;
-        }
-        .site-header .subtitle {
-            font-size: 16px;
-            color: white;
-            font-weight: 300;
-            font-style: italic;
-            display: inline;
-            margin-left: 12px;
-        }
-        
         /* メインコンテンツエリア */
         .main-content {
             padding: 20px;
@@ -75,49 +39,47 @@
             text-decoration: underline;
         }
 
-        /* フッター */
-        .footer {
-            background-color: white;
-            color: #000000;
-            padding: 15px 0;
-            margin-top: 50px;
-            border-top: 1px solid #e0e0e0;
+        /* ── 法律情報基盤（law-platform.jp）と同じヘッダー・フッター ── */
+        .lp-header { background-color: #002060; }
+        .lp-header-inner {
+          display: flex;
+          align-items: stretch;
+          max-width: 1024px;
+          min-height: 3.25rem;
+          margin: 0 auto;
         }
-        .footer-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
+        .lp-header .title-box { padding: 0.5rem 1rem 0 0.5rem; }
+        .lp-header .lp-title,
+        .lp-header .lp-subtitle { display: inline-block; margin: 0; line-height: 1; }
+        .lp-header .lp-title { font-size: 2rem; font-weight: 600; }
+        .lp-header .lp-title a { font-family: "HG教科書体"; font-weight: normal; }
+        .lp-header .lp-subtitle {
+          font-size: 1.25rem;
+          font-weight: 400;
+          font-family: "Times New Roman";
+          font-style: italic;
+          margin-left: 1em;
         }
-        .copyright-text {
-            font-size: 13px;
-            margin-bottom: 10px;
-            color: #000000;
+        .lp-header .lp-title a,
+        .lp-header .lp-subtitle a { color: white; text-decoration: none; }
+
+        .lp-footer {
+          margin-top: 3rem;
+          padding: 10px;
+          background-color: #fafafa;
+          color: #4a4a4a;
+          font-family: BlinkMacSystemFont, -apple-system, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+          font-size: 1rem;
+          font-weight: 400;
+          line-height: 1.5;
+          text-align: center;
         }
-        .copyright-text a {
-            color: #000000;
-            text-decoration: none;
-        }
-        .copyright-text a:hover {
-            text-decoration: underline;
-        }
-        .cc-license-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 12px;
-            color: #000000;
-        }
-        .cc-logo {
-            height: 31px;
-            width: 88px;
-        }
-        .cc-license-row a {
-            color: #1976d2;
-            text-decoration: none;
-        }
-        .cc-license-row a:hover {
-            text-decoration: underline;
-        }
+        .lp-footer-inner { max-width: 960px; margin: 0 auto; }
+        .lp-footer p { margin: 0; }
+        .lp-footer p:not(:last-child) { margin-bottom: 1em; }
+        .lp-footer a { color: #485fc7; text-decoration: none; }
+        .lp-footer a:hover { color: #363636; }
+        .lp-footer img { display: inline; height: auto; max-width: 100%; vertical-align: baseline; }
         .main-content h1 {
             text-align: left;
             color: #212121;
@@ -362,10 +324,10 @@
     </style>
 </head>
 <body>
-    <header class="site-header">
-        <div class="site-header-content">
-            <h1><a href="https://law-platform.jp/">法律情報基盤<span class="subtitle">- Legal Information Platform -</span></a></h1>
-        </div>
+    <header class="lp-header">
+      <div class="lp-header-inner">
+        <div class="title-box"><h1 class="lp-title"><a href="https://law-platform.jp/">法律情報基盤</a></h1><h2 class="lp-subtitle"><a href="https://law-platform.jp/"> - Legal Information Platform - </a></h2></div>
+      </div>
     </header>
     
     <div class="main-content">
@@ -400,18 +362,15 @@
         </div>
     </div>
 
-    <footer class="footer">
-        <div class="footer-content">
-            <div class="copyright-text">
-                <a href="https://law-platform.jp/">法律情報基盤</a> - Legal Information Platform
-            </div>
-            <div class="cc-license-row">
-                <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
-                    <img alt="クリエイティブ・コモンズ・ライセンス" class="cc-logo" src="https://i.creativecommons.org/l/by/4.0/88x31.png" />
-                </a>
-                この 作品 は <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">クリエイティブ・コモンズ 表示 4.0 国際 ライセンス</a>の下に提供されています。
-            </div>
+    <footer class="lp-footer">
+      <div class="lp-footer-inner">
+        <p><a href="https://law-platform.jp/terms">サイトポリシー</a></p>
+        <p>Copyright &copy;<a href="https://researchmap.jp/30419428" rel="noopener noreferrer" target="_blank"> SANO Tomoya</a></p>
+        <div>
+          <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer" target="_blank"><img alt="CC BY 4.0" class="cc-logo" src="https://licensebuttons.net/l/by/4.0/88x31.png" /></a>
+          <p>本データベースは、<a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer" target="_blank">クリエイティブ・コモンズ 表示 4.0 ライセンス</a>のもとで利用できます。</p>
         </div>
+      </div>
     </footer>
 
     <script>
