@@ -859,9 +859,7 @@
                     
                     html += `
                         <div class="article-item">
-                            <div class="article-id">
-                                ${article.article_id ? article.article_id : id} (${article.draft})
-                            </div>
+                            <div class="article-id">${article.draft}</div>
                             <div class="article-text">${article.text}</div>
                             ${linkHtml}
                         </div>
